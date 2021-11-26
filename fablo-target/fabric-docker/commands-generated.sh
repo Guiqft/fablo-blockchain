@@ -9,6 +9,9 @@ function generateArtifacts() {
   printItalics "Generating crypto material for Org1" "U1F512"
   certsGenerate "$FABLO_NETWORK_ROOT/fabric-config" "crypto-config-org1.yaml" "peerOrganizations/org1.com" "$FABLO_NETWORK_ROOT/fabric-config/crypto-config/"
 
+  printItalics "Generating crypto material for Org2" "U1F512"
+  certsGenerate "$FABLO_NETWORK_ROOT/fabric-config" "crypto-config-org2.yaml" "peerOrganizations/org2.com" "$FABLO_NETWORK_ROOT/fabric-config/crypto-config/"
+
   printItalics "Generating genesis block for group group1" "U1F3E0"
   genesisBlockCreate "$FABLO_NETWORK_ROOT/fabric-config" "$FABLO_NETWORK_ROOT/fabric-config/config" "Group1Genesis"
 
@@ -23,45 +26,66 @@ function startNetwork() {
 }
 
 function generateChannelsArtifacts() {
-  printHeadline "Generating config for 'my-channel1'" "U1F913"
-  createChannelTx "my-channel1" "$FABLO_NETWORK_ROOT/fabric-config" "MyChannel1" "$FABLO_NETWORK_ROOT/fabric-config/config"
+  printHeadline "Generating config for 'channel-org1'" "U1F913"
+  createChannelTx "channel-org1" "$FABLO_NETWORK_ROOT/fabric-config" "ChannelOrg1" "$FABLO_NETWORK_ROOT/fabric-config/config"
+  printHeadline "Generating config for 'channel-org2'" "U1F913"
+  createChannelTx "channel-org2" "$FABLO_NETWORK_ROOT/fabric-config" "ChannelOrg2" "$FABLO_NETWORK_ROOT/fabric-config/config"
 }
 
 function installChannels() {
-  printHeadline "Creating 'my-channel1' on Org1/peer0" "U1F63B"
-  docker exec -i cli.org1.com bash -c "source scripts/channel_fns.sh; createChannelAndJoin 'my-channel1' 'Org1MSP' 'peer0.org1.com:7041' 'crypto/users/Admin@org1.com/msp' 'orderer0.group1.orderer.com:7030';"
+  printHeadline "Creating 'channel-org1' on Org1/peer0" "U1F63B"
+  docker exec -i cli.org1.com bash -c "source scripts/channel_fns.sh; createChannelAndJoin 'channel-org1' 'Org1MSP' 'peer0.org1.com:7041' 'crypto/users/Admin@org1.com/msp' 'orderer0.group1.orderer.com:7030';"
 
-  printItalics "Joining 'my-channel1' on  Org1/peer1" "U1F638"
-  docker exec -i cli.org1.com bash -c "source scripts/channel_fns.sh; fetchChannelAndJoin 'my-channel1' 'Org1MSP' 'peer1.org1.com:7042' 'crypto/users/Admin@org1.com/msp' 'orderer0.group1.orderer.com:7030';"
+  printItalics "Joining 'channel-org1' on  Org1/peer1" "U1F638"
+  docker exec -i cli.org1.com bash -c "source scripts/channel_fns.sh; fetchChannelAndJoin 'channel-org1' 'Org1MSP' 'peer1.org1.com:7042' 'crypto/users/Admin@org1.com/msp' 'orderer0.group1.orderer.com:7030';"
+  printHeadline "Creating 'channel-org2' on Org2/peer0" "U1F63B"
+  docker exec -i cli.org2.com bash -c "source scripts/channel_fns.sh; createChannelAndJoin 'channel-org2' 'Org2MSP' 'peer0.org2.com:7061' 'crypto/users/Admin@org2.com/msp' 'orderer0.group1.orderer.com:7030';"
+
 }
 
 function installChaincodes() {
   if [ -n "$(ls "$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node")" ]; then
     local version="0.0.1"
-    printHeadline "Packaging chaincode 'chaincode1'" "U1F60E"
-    chaincodeBuild "chaincode1" "node" "$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node"
-    chaincodePackage "cli.org1.com" "peer0.org1.com:7041" "chaincode1" "$version" "node" printHeadline "Installing 'chaincode1' for Org1" "U1F60E"
-    chaincodeInstall "cli.org1.com" "peer0.org1.com:7041" "chaincode1" "$version" ""
-    chaincodeInstall "cli.org1.com" "peer1.org1.com:7042" "chaincode1" "$version" ""
-    chaincodeApprove "cli.org1.com" "peer0.org1.com:7041" "my-channel1" "chaincode1" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" ""
-    printItalics "Committing chaincode 'chaincode1' on channel 'my-channel1' as 'Org1'" "U1F618"
-    chaincodeCommit "cli.org1.com" "peer0.org1.com:7041" "my-channel1" "chaincode1" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" "peer0.org1.com:7041" "" ""
+    printHeadline "Packaging chaincode 'kv'" "U1F60E"
+    chaincodeBuild "kv" "node" "$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node"
+    chaincodePackage "cli.org1.com" "peer0.org1.com:7041" "kv" "$version" "node" printHeadline "Installing 'kv' for Org1" "U1F60E"
+    chaincodeInstall "cli.org1.com" "peer0.org1.com:7041" "kv" "$version" ""
+    chaincodeInstall "cli.org1.com" "peer1.org1.com:7042" "kv" "$version" ""
+    chaincodeApprove "cli.org1.com" "peer0.org1.com:7041" "channel-org1" "kv" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" ""
+    printItalics "Committing chaincode 'kv' on channel 'channel-org1' as 'Org1'" "U1F618"
+    chaincodeCommit "cli.org1.com" "peer0.org1.com:7041" "channel-org1" "kv" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" "peer0.org1.com:7041" "" ""
   else
-    echo "Warning! Skipping chaincode 'chaincode1' installation. Chaincode directory is empty."
+    echo "Warning! Skipping chaincode 'kv' installation. Chaincode directory is empty."
     echo "Looked in dir: '$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node'"
+  fi
+  if [ -n "$(ls "$CHAINCODES_BASE_DIR/./chaincodes/fabcar")" ]; then
+    local version="0.0.1"
+    printHeadline "Packaging chaincode 'fabcar'" "U1F60E"
+    chaincodeBuild "fabcar" "node" "$CHAINCODES_BASE_DIR/./chaincodes/fabcar"
+    chaincodePackage "cli.org2.com" "peer0.org2.com:7061" "fabcar" "$version" "node" printHeadline "Installing 'fabcar' for Org2" "U1F60E"
+    chaincodeInstall "cli.org2.com" "peer0.org2.com:7061" "fabcar" "$version" ""
+    chaincodeApprove "cli.org2.com" "peer0.org2.com:7061" "channel-org2" "fabcar" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" ""
+    printItalics "Committing chaincode 'fabcar' on channel 'channel-org2' as 'Org2'" "U1F618"
+    chaincodeCommit "cli.org2.com" "peer0.org2.com:7061" "channel-org2" "fabcar" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" "peer0.org2.com:7061" "" ""
+  else
+    echo "Warning! Skipping chaincode 'fabcar' installation. Chaincode directory is empty."
+    echo "Looked in dir: '$CHAINCODES_BASE_DIR/./chaincodes/fabcar'"
   fi
 
 }
 
 function notifyOrgsAboutChannels() {
   printHeadline "Creating new channel config blocks" "U1F537"
-  createNewChannelUpdateTx "my-channel1" "Org1MSP" "MyChannel1" "$FABLO_NETWORK_ROOT/fabric-config" "$FABLO_NETWORK_ROOT/fabric-config/config"
+  createNewChannelUpdateTx "channel-org1" "Org1MSP" "ChannelOrg1" "$FABLO_NETWORK_ROOT/fabric-config" "$FABLO_NETWORK_ROOT/fabric-config/config"
+  createNewChannelUpdateTx "channel-org2" "Org2MSP" "ChannelOrg2" "$FABLO_NETWORK_ROOT/fabric-config" "$FABLO_NETWORK_ROOT/fabric-config/config"
 
   printHeadline "Notyfing orgs about channels" "U1F4E2"
-  notifyOrgAboutNewChannel "my-channel1" "Org1MSP" "cli.org1.com" "peer0.org1.com" "orderer0.group1.orderer.com:7030"
+  notifyOrgAboutNewChannel "channel-org1" "Org1MSP" "cli.org1.com" "peer0.org1.com" "orderer0.group1.orderer.com:7030"
+  notifyOrgAboutNewChannel "channel-org2" "Org2MSP" "cli.org2.com" "peer0.org2.com" "orderer0.group1.orderer.com:7030"
 
   printHeadline "Deleting new channel config blocks" "U1F52A"
-  deleteNewChannelUpdateTx "my-channel1" "Org1MSP" "cli.org1.com"
+  deleteNewChannelUpdateTx "channel-org1" "Org1MSP" "cli.org1.com"
+  deleteNewChannelUpdateTx "channel-org2" "Org2MSP" "cli.org2.com"
 }
 
 function upgradeChaincode() {
@@ -77,20 +101,35 @@ function upgradeChaincode() {
     exit 1
   fi
 
-  if [ "$chaincodeName" = "chaincode1" ]; then
+  if [ "$chaincodeName" = "kv" ]; then
     if [ -n "$(ls "$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node")" ]; then
-      printHeadline "Packaging chaincode 'chaincode1'" "U1F60E"
-      chaincodeBuild "chaincode1" "node" "$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node"
-      chaincodePackage "cli.org1.com" "peer0.org1.com:7041" "chaincode1" "$version" "node" printHeadline "Installing 'chaincode1' for Org1" "U1F60E"
-      chaincodeInstall "cli.org1.com" "peer0.org1.com:7041" "chaincode1" "$version" ""
-      chaincodeInstall "cli.org1.com" "peer1.org1.com:7042" "chaincode1" "$version" ""
-      chaincodeApprove "cli.org1.com" "peer0.org1.com:7041" "my-channel1" "chaincode1" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" ""
-      printItalics "Committing chaincode 'chaincode1' on channel 'my-channel1' as 'Org1'" "U1F618"
-      chaincodeCommit "cli.org1.com" "peer0.org1.com:7041" "my-channel1" "chaincode1" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" "peer0.org1.com:7041" "" ""
+      printHeadline "Packaging chaincode 'kv'" "U1F60E"
+      chaincodeBuild "kv" "node" "$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node"
+      chaincodePackage "cli.org1.com" "peer0.org1.com:7041" "kv" "$version" "node" printHeadline "Installing 'kv' for Org1" "U1F60E"
+      chaincodeInstall "cli.org1.com" "peer0.org1.com:7041" "kv" "$version" ""
+      chaincodeInstall "cli.org1.com" "peer1.org1.com:7042" "kv" "$version" ""
+      chaincodeApprove "cli.org1.com" "peer0.org1.com:7041" "channel-org1" "kv" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" ""
+      printItalics "Committing chaincode 'kv' on channel 'channel-org1' as 'Org1'" "U1F618"
+      chaincodeCommit "cli.org1.com" "peer0.org1.com:7041" "channel-org1" "kv" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" "peer0.org1.com:7041" "" ""
 
     else
-      echo "Warning! Skipping chaincode 'chaincode1' upgrade. Chaincode directory is empty."
+      echo "Warning! Skipping chaincode 'kv' upgrade. Chaincode directory is empty."
       echo "Looked in dir: '$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node'"
+    fi
+  fi
+  if [ "$chaincodeName" = "fabcar" ]; then
+    if [ -n "$(ls "$CHAINCODES_BASE_DIR/./chaincodes/fabcar")" ]; then
+      printHeadline "Packaging chaincode 'fabcar'" "U1F60E"
+      chaincodeBuild "fabcar" "node" "$CHAINCODES_BASE_DIR/./chaincodes/fabcar"
+      chaincodePackage "cli.org2.com" "peer0.org2.com:7061" "fabcar" "$version" "node" printHeadline "Installing 'fabcar' for Org2" "U1F60E"
+      chaincodeInstall "cli.org2.com" "peer0.org2.com:7061" "fabcar" "$version" ""
+      chaincodeApprove "cli.org2.com" "peer0.org2.com:7061" "channel-org2" "fabcar" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" ""
+      printItalics "Committing chaincode 'fabcar' on channel 'channel-org2' as 'Org2'" "U1F618"
+      chaincodeCommit "cli.org2.com" "peer0.org2.com:7061" "channel-org2" "fabcar" "$version" "orderer0.group1.orderer.com:7030" "" "false" "" "peer0.org2.com:7061" "" ""
+
+    else
+      echo "Warning! Skipping chaincode 'fabcar' upgrade. Chaincode directory is empty."
+      echo "Looked in dir: '$CHAINCODES_BASE_DIR/./chaincodes/fabcar'"
     fi
   fi
 }
@@ -106,10 +145,12 @@ function networkDown() {
   (cd "$FABLO_NETWORK_ROOT"/fabric-docker && docker-compose down)
 
   printf "\nRemoving chaincode containers & images... \U1F5D1 \n"
-  docker rm -f $(docker ps -a | grep dev-peer0.org1.com-chaincode1-0.0.1-* | awk '{print $1}') || echo "docker rm failed, Check if all fabric dockers properly was deleted"
-  docker rmi $(docker images dev-peer0.org1.com-chaincode1-0.0.1-* -q) || echo "docker rm failed, Check if all fabric dockers properly was deleted"
-  docker rm -f $(docker ps -a | grep dev-peer1.org1.com-chaincode1-0.0.1-* | awk '{print $1}') || echo "docker rm failed, Check if all fabric dockers properly was deleted"
-  docker rmi $(docker images dev-peer1.org1.com-chaincode1-0.0.1-* -q) || echo "docker rm failed, Check if all fabric dockers properly was deleted"
+  docker rm -f $(docker ps -a | grep dev-peer0.org1.com-kv-0.0.1-* | awk '{print $1}') || echo "docker rm failed, Check if all fabric dockers properly was deleted"
+  docker rmi $(docker images dev-peer0.org1.com-kv-0.0.1-* -q) || echo "docker rm failed, Check if all fabric dockers properly was deleted"
+  docker rm -f $(docker ps -a | grep dev-peer1.org1.com-kv-0.0.1-* | awk '{print $1}') || echo "docker rm failed, Check if all fabric dockers properly was deleted"
+  docker rmi $(docker images dev-peer1.org1.com-kv-0.0.1-* -q) || echo "docker rm failed, Check if all fabric dockers properly was deleted"
+  docker rm -f $(docker ps -a | grep dev-peer0.org2.com-fabcar-0.0.1-* | awk '{print $1}') || echo "docker rm failed, Check if all fabric dockers properly was deleted"
+  docker rmi $(docker images dev-peer0.org2.com-fabcar-0.0.1-* -q) || echo "docker rm failed, Check if all fabric dockers properly was deleted"
 
   printf "\nRemoving generated configs... \U1F5D1 \n"
   rm -rf "$FABLO_NETWORK_ROOT/fabric-config/config"

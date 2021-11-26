@@ -77,6 +77,29 @@ Organizations:
           - Host: peer1.org1.com
             Port: 7042
 
+    - &Org2
+      Name: Org2MSP
+      ID: Org2MSP
+      MSPDir: crypto-config/peerOrganizations/org2.com/msp
+
+      Policies:
+          Readers:
+              Type: Signature
+              Rule: "OR('Org2MSP.member')"
+          Writers:
+              Type: Signature
+              Rule: "OR('Org2MSP.member')"
+          Admins:
+              Type: Signature
+              Rule: "OR('Org2MSP.admin')"
+          Endorsement:
+              Type: Signature
+              Rule: "OR('Org2MSP.member')"
+
+      AnchorPeers:
+          - Host: peer0.org2.com
+            Port: 7061
+
 ################################################################################
 #   SECTION: Application
 ################################################################################
@@ -155,9 +178,10 @@ Profiles:
                 Organizations:
                     - *Orderer
                     - *Org1
+                    - *Org2
 
-    # Profile used to create channeltx for my-channel1 #
-    MyChannel1:
+    # Profile used to create channeltx for channel-org1 #
+    ChannelOrg1:
         <<: *ChannelDefaults
         Orderer:
             <<: *Group1Defaults
@@ -174,3 +198,22 @@ Profiles:
             <<: *ApplicationDefaults
             Organizations:
                 - *Org1
+
+    # Profile used to create channeltx for channel-org2 #
+    ChannelOrg2:
+        <<: *ChannelDefaults
+        Orderer:
+            <<: *Group1Defaults
+            Organizations:
+                - *Orderer
+            Capabilities:
+                <<: *ApplicationCapabilities
+        Consortium: SampleConsortium
+        Consortiums:
+            SampleConsortium:
+                Organizations:
+                    - *Org2
+        Application:
+            <<: *ApplicationDefaults
+            Organizations:
+                - *Org2

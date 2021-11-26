@@ -44,7 +44,8 @@ services:
       - ../fabric-config/config:/var/hyperledger/cli/config/ # genesis.block and channel.tx's
       - ../fabric-config/crypto-config/peerOrganizations/orderer.com:/var/hyperledger/cli/crypto/
       - ../fabric-config/chaincode-packages:/var/hyperledger/cli/chaincode-packages/
-      - "$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node/:/var/hyperledger/cli/chaincode1/"
+      - "$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node/:/var/hyperledger/cli/kv/"
+      - "$CHAINCODES_BASE_DIR/./chaincodes/fabcar/:/var/hyperledger/cli/fabcar/"
     networks:
       - basic
 
@@ -57,7 +58,7 @@ services:
       - FABRIC_CA_URL=http://ca.orderer.com:7054
       - FABRIC_CA_NAME=ca.orderer.com
       - AS_LOCALHOST=false
-      - DISCOVERY_URLS=grpc://peer0.org1.com:7041,grpc://peer1.org1.com:7042
+      - DISCOVERY_URLS=grpc://peer0.org1.com:7041,grpc://peer1.org1.com:7042,grpc://peer0.org2.com:7061
       - HFC_LOGGING={"error":"console","warn":"console","info":"console"}
     ports:
       - 8800:8000
@@ -127,7 +128,8 @@ services:
       - ../fabric-config/config:/var/hyperledger/cli/config/ # genesis.block and channel.tx's
       - ../fabric-config/crypto-config/peerOrganizations/org1.com:/var/hyperledger/cli/crypto/
       - ../fabric-config/chaincode-packages:/var/hyperledger/cli/chaincode-packages/
-      - "$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node/:/var/hyperledger/cli/chaincode1/"
+      - "$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node/:/var/hyperledger/cli/kv/"
+      - "$CHAINCODES_BASE_DIR/./chaincodes/fabcar/:/var/hyperledger/cli/fabcar/"
     networks:
       - basic
 
@@ -140,7 +142,7 @@ services:
       - FABRIC_CA_URL=http://ca.org1.com:7054
       - FABRIC_CA_NAME=ca.org1.com
       - AS_LOCALHOST=false
-      - DISCOVERY_URLS=grpc://peer0.org1.com:7041,grpc://peer1.org1.com:7042
+      - DISCOVERY_URLS=grpc://peer0.org1.com:7041,grpc://peer1.org1.com:7042,grpc://peer0.org2.com:7061
       - HFC_LOGGING={"error":"console","warn":"console","info":"console"}
     ports:
       - 8801:8000
@@ -219,6 +221,105 @@ services:
       - ../fabric-config/crypto-config/peerOrganizations/org1.com/peers/peer1.org1.com/msp:/etc/hyperledger/fabric/peer/msp
       - ../fabric-config/crypto-config/peerOrganizations/org1.com/peers/peer1.org1.com/tls:/etc/hyperledger/fabric/peer/tls
       - ../fabric-config/crypto-config/peerOrganizations/org1.com/users:/etc/hyperledger/fabric/peer/msp/users
+      - ../fabric-config/config:/etc/hyperledger/fabric/config
+    networks:
+      - basic
+
+  ca.org2.com:
+    container_name: ca.org2.com
+    image: hyperledger/fabric-ca:${FABRIC_CA_VERSION}
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca.org2.com
+      - FABRIC_CA_SERVER_CA_CERTFILE=/etc/hyperledger/fabric-ca-server/crypto/ca.org2.com-cert.pem
+      - FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server/crypto/priv-key.pem
+      - FABRIC_LOGGING_SPEC=${LOGGING_LEVEL}
+    ports:
+      - 7060:7054
+    working_dir: /etc/hyperledger/fabric-ca-server
+    command: sh -c 'fabric-ca-server start -b ${ORG2_CA_ADMIN_NAME}:${ORG2_CA_ADMIN_PASSWORD} -d'
+    volumes:
+      - ../fabric-config/crypto-config/peerOrganizations/org2.com/ca/:/etc/hyperledger/fabric-ca-server/crypto
+    networks:
+      - basic
+
+  cli.org2.com:
+    container_name: cli.org2.com
+    image: hyperledger/fabric-tools:${FABRIC_VERSION}
+    tty: true
+    environment:
+      - GOPATH=/opt/gopath
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - FABRIC_LOGGING_SPEC=${LOGGING_LEVEL}
+      - CORE_PEER_ID=cli.org2.com
+      - CORE_CHAINCODE_KEEPALIVE=10
+      #
+      - CORE_PEER_LOCALMSPID=Org2MSP
+      - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/cli/crypto/users/Admin@org2.com/msp
+      - CORE_PEER_ADDRESS=peer0.org2.com:7061
+    working_dir: /var/hyperledger/cli/
+    command: /bin/bash
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../fabric-docker/scripts/cli:/var/hyperledger/cli/scripts/
+      - ../fabric-config/config:/var/hyperledger/cli/config/ # genesis.block and channel.tx's
+      - ../fabric-config/crypto-config/peerOrganizations/org2.com:/var/hyperledger/cli/crypto/
+      - ../fabric-config/chaincode-packages:/var/hyperledger/cli/chaincode-packages/
+      - "$CHAINCODES_BASE_DIR/./chaincodes/chaincode-kv-node/:/var/hyperledger/cli/kv/"
+      - "$CHAINCODES_BASE_DIR/./chaincodes/fabcar/:/var/hyperledger/cli/fabcar/"
+    networks:
+      - basic
+
+  fablo-rest.org2.com:
+    container_name: fablo-rest.org2.com
+    image: softwaremill/fablo-rest:${FABLO_REST_VERSION}
+    environment:
+      - PORT=8000
+      - MSP_ID=Org2MSP
+      - FABRIC_CA_URL=http://ca.org2.com:7054
+      - FABRIC_CA_NAME=ca.org2.com
+      - AS_LOCALHOST=false
+      - DISCOVERY_URLS=grpc://peer0.org1.com:7041,grpc://peer1.org1.com:7042,grpc://peer0.org2.com:7061
+      - HFC_LOGGING={"error":"console","warn":"console","info":"console"}
+    ports:
+      - 8802:8000
+    networks:
+      - basic
+
+  peer0.org2.com:
+    container_name: peer0.org2.com
+    image: hyperledger/fabric-peer:${FABRIC_VERSION}
+    environment:
+      - CORE_PEER_LOCALMSPID=Org2MSP
+      - CORE_PEER_ID=peer0.org2.com
+      - CORE_PEER_ADDRESS=peer0.org2.com:7061
+      - CORE_PEER_LISTENADDRESS=peer0.org2.com:7061
+      - CORE_PEER_GOSSIP_ENDPOINT=peer0.org2.com:7061
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org2.com:7061
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org2.com:7061
+      - CORE_PEER_CHAINCODELISTENADDRESS=peer0.org2.com:7050
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/peer/msp
+      - CORE_CHAINCODE_BUILDER=hyperledger/fabric-ccenv:${FABRIC_CCENV_VERSION}
+      - CORE_CHAINCODE_GOLANG_RUNTIME=hyperledger/fabric-baseos:${FABRIC_BASEOS_VERSION}
+      - CORE_CHAINCODE_JAVA_RUNTIME=hyperledger/fabric-javaenv:${FABRIC_JAVAENV_VERSION}
+      #
+      - CORE_CHAINCODE_LOGGING_LEVEL=${LOGGING_LEVEL}
+      - CORE_CHAINCODE_LOGGING_SHIM=${LOGGING_LEVEL}
+      - FABRIC_LOGGING_SPEC=${LOGGING_LEVEL}
+      #
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=${COMPOSE_PROJECT_NAME}_basic
+      - CORE_VM_DOCKER_ATTACHSTDOUT=true
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - GODEBUG=netdns=go
+    working_dir: /etc/hyperledger/fabric/peer/
+    command: peer node start
+    ports:
+      - 7061:7061
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ../fabric-config/crypto-config/peerOrganizations/org2.com/peers/peer0.org2.com/msp:/etc/hyperledger/fabric/peer/msp
+      - ../fabric-config/crypto-config/peerOrganizations/org2.com/peers/peer0.org2.com/tls:/etc/hyperledger/fabric/peer/tls
+      - ../fabric-config/crypto-config/peerOrganizations/org2.com/users:/etc/hyperledger/fabric/peer/msp/users
       - ../fabric-config/config:/etc/hyperledger/fabric/config
     networks:
       - basic

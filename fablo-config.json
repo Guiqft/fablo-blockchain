@@ -1,61 +1,87 @@
 {
-  "$schema": "https://github.com/softwaremill/fablo/releases/download/0.3.0/schema.json",
-  "networkSettings": {
-    "fabricVersion": "2.3.2",
-    "tls": false
-  },
-  "orgs": [
-    {
-      "organization": {
-        "name": "Orderer",
-        "domain": "orderer.com"
-      },
-      "orderers": [
-        {
-          "groupName": "group1",
-          "type": "solo",
-          "instances": 1
-        }
-      ],
-      "tools": {
-        "fabloRest": true
-      }
+    "$schema": "https://github.com/softwaremill/fablo/releases/download/0.3.0/schema.json",
+    "networkSettings": {
+        "fabricVersion": "2.3.2",
+        "tls": false
     },
-    {
-      "organization": {
-        "name": "Org1",
-        "domain": "org1.com"
-      },
-      "peer": {
-        "instances": 2,
-        "db": "LevelDb"
-      },
-      "tools": {
-        "fabloRest": true
-      }
-    }
-  ],
-  "channels": [
-    {
-      "name": "my-channel1",
-      "orgs": [
+    "orgs": [
         {
-          "name": "Org1",
-          "peers": [
-            "peer0",
-            "peer1"
-          ]
+            "organization": {
+                "name": "Orderer",
+                "domain": "orderer.com"
+            },
+            "orderers": [
+                {
+                    "groupName": "group1",
+                    "type": "solo",
+                    "instances": 1
+                }
+            ],
+            "tools": {
+                "fabloRest": true
+            }
+        },
+        {
+            "organization": {
+                "name": "Org1",
+                "domain": "org1.com"
+            },
+            "peer": {
+                "instances": 2,
+                "db": "LevelDb"
+            },
+            "tools": {
+                "fabloRest": true
+            }
+        },
+        {
+            "organization": {
+                "name": "Org2",
+                "domain": "org2.com"
+            },
+            "peer": {
+                "instances": 1,
+                "db": "LevelDb"
+            },
+            "tools": {
+                "fabloRest": true
+            }
         }
-      ]
-    }
-  ],
-  "chaincodes": [
-    {
-      "name": "chaincode1",
-      "version": "0.0.1",
-      "lang": "node",
-      "channel": "my-channel1",
-      "directory": "./chaincodes/chaincode-kv-node"
-    }
-  ]
+    ],
+    "channels": [
+        {
+            "name": "channel-org1",
+            "orgs": [
+                {
+                    "name": "Org1",
+                    "peers": ["peer0", "peer1"]
+                }
+            ]
+        },
+        {
+            "name": "channel-org2",
+            "orgs": [
+                {
+                    "name": "Org2",
+                    "peers": ["peer0"]
+                }
+            ]
+        }
+    ],
+    "chaincodes": [
+        {
+            "name": "kv",
+            "version": "0.0.1",
+            "lang": "node",
+            "channel": "channel-org1",
+            "directory": "./chaincodes/chaincode-kv-node"
+        },
+        {
+            "name": "fabcar",
+            "version": "0.0.1",
+            "lang": "node",
+            "channel": "channel-org2",
+            "directory": "./chaincodes/fabcar"
+        }
+    ]
 }
